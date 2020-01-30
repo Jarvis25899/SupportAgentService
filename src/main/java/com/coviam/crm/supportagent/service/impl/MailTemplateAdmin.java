@@ -3,11 +3,11 @@ package com.coviam.crm.supportagent.service.impl;
 import com.coviam.crm.supportagent.document.Ticket;
 import com.coviam.crm.supportagent.dto.MailDTO;
 
-public class MailTemplate  {
+public class MailTemplateAdmin {
 
     public static MailDTO mail(Ticket ticket){
         MailDTO mailDTO = new MailDTO();
-        mailDTO.setUserEmail("Admin Email");
+        mailDTO.setUserEmail("jainilpatel807@gmail.com");
         long mailNumber = ticket.getMailCount();
         switch ((int) mailNumber){
             case 0:

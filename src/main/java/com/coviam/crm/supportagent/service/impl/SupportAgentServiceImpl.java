@@ -38,7 +38,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
     SaTicketRespository saTicketRespository;
 
     @Autowired
-    KafkaTemplate<String,String> kafkaTemplate;
+    KafkaTemplate<String, String> kafkaTemplate;
 
     @Override
     public SupportAgent addSupportAgent(SupportAgent supportAgent) {
@@ -55,7 +55,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
         List<Ticket> ticketList = new ArrayList<>();
         ticketRepository.findAll().stream().forEach(ticket -> {
-            if ((ticket.getStatus()).equals("open")){
+            if ((ticket.getStatus()).equals("open")) {
                 ticketList.add(ticket);
             }
         });
@@ -98,16 +98,16 @@ public class SupportAgentServiceImpl implements SupportAgentService {
     @Override
     public Ticket uploadComments(CommentDTO commentDTO) {
         Ticket ticket = ticketRepository.findById(commentDTO.getTicketId()).get();
-        List<String> commentsList =  ticket.getComments();
+        List<String> commentsList = ticket.getComments();
         commentsList.add(commentDTO.getComments());
 
-        List<String> imageList =  ticket.getImages();
+        List<String> imageList = ticket.getImages();
         imageList.add(commentDTO.getImages());
 
-        List<String> videoList =  ticket.getVideo();
+        List<String> videoList = ticket.getVideo();
         videoList.add(commentDTO.getVideo());
 
-        List<String> docsList =  ticket.getDocs();
+        List<String> docsList = ticket.getDocs();
         docsList.add(commentDTO.getDocs());
 
         ticket.setComments(commentsList);
@@ -129,7 +129,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
         AtomicReference<SaTicket> saTicket1 = new AtomicReference<>(new SaTicket());
 
         saTickets.stream().forEach(saTicket -> {
-            if((saTicket.getTicketId()).equals(ticketId)){
+            if ((saTicket.getTicketId()).equals(ticketId)) {
                 saTicket1.set(saTicket);
             }
         });
@@ -154,7 +154,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
         List<Ticket> tickets = new ArrayList<>();
 
         saTickets.stream().forEach(saTicket -> {
-            if ((saTicket.getSupportAgentId()).equals(supportAgentId)){
+            if ((saTicket.getSupportAgentId()).equals(supportAgentId)) {
                 Ticket ticket = new Ticket();
                 ticket = ticketRepository.findById(saTicket.getTicketId()).get();
                 tickets.add(ticket);
@@ -166,20 +166,18 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
     @Override
     public String createTicket(PostDTO postDTO) {
-        if(ticketRepository.existsById(postDTO.getPostId())){
+        if (ticketRepository.existsById(postDTO.getPostId())) {
             Ticket ticket = ticketRepository.findById(postDTO.getPostId()).get();
             ticket.setCountOfDislike(postDTO.getCounterOfDislikes());
 
-            List<String> dislikeIdsList= ticket.getDislikeIds();
+            List<String> dislikeIdsList = ticket.getDislikeIds();
             dislikeIdsList.add(postDTO.getDislikedId());
             ticket.setDislikeIds(dislikeIdsList);
 
             ticketRepository.save(ticket);
 
 
-
-        }
-        else {
+        } else {
 
 
             Ticket ticket = new Ticket();
@@ -210,19 +208,24 @@ public class SupportAgentServiceImpl implements SupportAgentService {
     }
 
     @Scheduled(fixedDelay = 600000)
-    private void sendMails(){
+    private void sendMails() {
         List<Ticket> ticketList = ticketRepository.findAll();
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
 
         ticketList.stream().forEach(ticket -> {
-            if ((ticket.getStatus()).equals("open")){
+            if ((ticket.getStatus()).equals("open")) {
                 LocalDateTime now = LocalDateTime.now();
 
-                if (dtf.format(now.minusMinutes(15)).compareTo(ticket.getUpdatedTime()) > 0){
+                if (dtf.format(now.minusMinutes(15)).compareTo(ticket.getUpdatedTime()) > 0) {
 
-                    MailDTO mailDTO = MailTemplate.mail(ticket);
+                    MailDTO mailDTO = MailTemplateAdmin.mail(ticket);
 
-                    //send mailDTO
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    try {
+                        kafkaTemplate.send("Mail", objectMapper.writeValueAsString(mailDTO));
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
 
                     if (ticket.getMailCount() < 4)
                         ticket.setMailCount(ticket.getMailCount() + 1);
@@ -232,46 +235,38 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
 
                 }
-            }else if((ticket.getStatus()).equals("in progress")){
+
+            } else if ((ticket.getStatus()).equals("in progress")) {
                 LocalDateTime now = LocalDateTime.now();
 
-                if (dtf.format(now.minusMinutes(15)).compareTo(ticket.getUpdatedTime()) > 0){
-                    //send mail
-                    if(ticket.getMailCount()==0){
-                        //send mail1
-                        ticket.setMailCount(ticket.getMailCount() + 1);
+                if (dtf.format(now.minusMinutes(15)).compareTo(ticket.getUpdatedTime()) > 0) {
+
+                    AtomicReference<String> saId = new AtomicReference<>("");
+                    saTicketRespository.findAll().stream().forEach(saTicket -> {
+                        if ((saTicket.getTicketId()).equals(ticket.getTicketId())) {
+                            saId.set(saTicket.getSupportAgentId());
+                            return;
+                        }
+                    });
+
+                    MailDTO mailDTO = MailTemplateAgent.mail(ticket, supportAgentRepository.findById(saId.get()).get());
+
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    try {
+                        kafkaTemplate.send("Mail", objectMapper.writeValueAsString(mailDTO));
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
                     }
-                    else if(ticket.getMailCount()==1){
-                        //send mail2
+
+                    if (ticket.getMailCount() < 4)
                         ticket.setMailCount(ticket.getMailCount() + 1);
-                    }
-                    else if(ticket.getMailCount()==2){
-                        //send mail3
-                        ticket.setMailCount(ticket.getMailCount() + 1);
-                    }
-                    else if(ticket.getMailCount()==3){
-                        //send mail4
-                        ticket.setMailCount(ticket.getMailCount() + 1);
-                    }
-                    else if(ticket.getMailCount()==4) {
-                        //send mail5
-                        ticket.setMailCount(0);
+
+                    else
                         ticket.setStatus("open");
-                    }
 
                 }
             }
         });
-
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        MailDTO mailDTO = new MailDTO();
-
-        try {
-            kafkaTemplate.send("Mail",objectMapper.writeValueAsString(mailDTO));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
     }
-
 }
+
