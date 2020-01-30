@@ -1,0 +1,8 @@
+spring:
+  kafka:
+    producer:
+      bootstrap-servers: 10.177.68.216:9092
+      group-id: group-id
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.configuration.common.serialization.StringDeserializer
+      value-deserializer: org.apache.configuration.common.serialization.StringDeserializer
