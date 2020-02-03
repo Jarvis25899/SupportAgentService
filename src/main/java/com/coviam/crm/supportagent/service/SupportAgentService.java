@@ -4,6 +4,7 @@ import com.coviam.crm.supportagent.document.SaTicket;
 import com.coviam.crm.supportagent.document.SupportAgent;
 import com.coviam.crm.supportagent.document.Ticket;
 import com.coviam.crm.supportagent.dto.CommentDTO;
+import com.coviam.crm.supportagent.dto.NoTicketsDTO;
 import com.coviam.crm.supportagent.dto.PostDTO;
 
 import java.util.List;
@@ -18,7 +19,10 @@ public interface SupportAgentService {
     Ticket getTicketById(String ticketId);
     Ticket uploadComments(CommentDTO commentDTO);
     String closeTicket(String ticketId);
-    List<Ticket> getTicketsBySAId(String supportAgentId);
+    List<Ticket> getPendingTicketsBySAId(String supportAgentId);
+    List<Ticket> getResolvedTicketsBySAId(String supportAgentId);
     String createTicket(PostDTO postDTO);
+    NoTicketsDTO resolvedTickets(String supportAgentId);
+//    String parseToken(String idToken);
 
 }

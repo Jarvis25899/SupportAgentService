@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import javax.persistence.GeneratedValue;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -27,7 +28,6 @@ public class Ticket {
     private String status;
     private String createdTime;
     private String updatedTime;
-
     private long mailCount;
     private String source;
     private List<String> comments;
@@ -36,4 +36,11 @@ public class Ticket {
     private List<String> docs;
     private List<String> dislikeIds;
 
+    public Ticket() {
+        comments = new ArrayList<>();
+        images = new ArrayList<>();
+        video = new ArrayList<>();
+        docs = new ArrayList<>();
+        dislikeIds = new ArrayList<>();
+    }
 }

@@ -5,6 +5,7 @@ import com.coviam.crm.supportagent.document.SupportAgent;
 import com.coviam.crm.supportagent.document.Ticket;
 import com.coviam.crm.supportagent.dto.CommentDTO;
 import com.coviam.crm.supportagent.dto.MailDTO;
+import com.coviam.crm.supportagent.dto.NoTicketsDTO;
 import com.coviam.crm.supportagent.dto.PostDTO;
 import com.coviam.crm.supportagent.repository.SaTicketRespository;
 import com.coviam.crm.supportagent.repository.SupportAgentRepository;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Service
@@ -50,6 +52,20 @@ public class SupportAgentServiceImpl implements SupportAgentService {
         supportAgentRepository.deleteById(sId);
     }
 
+//    @Value("${jwt.secret}")
+//    private String secret;
+//
+//    @Override
+//    public String parseToken(String idToken) {
+//        Claims body = Jwts.parser()
+//                .setSigningKey(secret)
+//                .parseClaimsJws(idToken)
+//                .getBody();
+//        String id = (String) body.get("userId");
+//        System.out.println(id);
+//        return id;
+//    }
+
     @Override
     public List<Ticket> getTicketList() {
 
@@ -65,8 +81,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
     @Override
     public SaTicket assignTicket(SaTicket saTicket) {
-        Ticket ticket = new Ticket();
-        ticket = ticketRepository.findById(saTicket.getTicketId()).get();
+        Ticket ticket = ticketRepository.findById(saTicket.getTicketId()).get();
 
         SupportAgent supportAgent = supportAgentRepository.findById(saTicket.getSupportAgentId()).get();
 
@@ -79,6 +94,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
         LocalDateTime now = LocalDateTime.now();
         ticket.setUpdatedTime(dtf.format(now));
+        ticket.setMailCount(0);
 
         ticketRepository.save(ticket);
 
@@ -149,7 +165,7 @@ public class SupportAgentServiceImpl implements SupportAgentService {
     }
 
     @Override
-    public List<Ticket> getTicketsBySAId(String supportAgentId) {
+    public List<Ticket> getPendingTicketsBySAId(String supportAgentId) {
         List<SaTicket> saTickets = saTicketRespository.findAll();
         List<Ticket> tickets = new ArrayList<>();
 
@@ -157,7 +173,26 @@ public class SupportAgentServiceImpl implements SupportAgentService {
             if ((saTicket.getSupportAgentId()).equals(supportAgentId)) {
                 Ticket ticket = new Ticket();
                 ticket = ticketRepository.findById(saTicket.getTicketId()).get();
-                tickets.add(ticket);
+                if ((ticket.getStatus()).equals("in progress")) {
+                    tickets.add(ticket);
+                }
+            }
+        });
+
+        return tickets;
+    }
+
+    @Override
+    public List<Ticket> getResolvedTicketsBySAId(String supportAgentId) {
+        List<SaTicket> saTickets = saTicketRespository.findAll();
+        List<Ticket> tickets = new ArrayList<>();
+
+        saTickets.stream().forEach(saTicket -> {
+            if ((saTicket.getSupportAgentId()).equals(supportAgentId)) {
+                Ticket ticket = ticketRepository.findById(saTicket.getTicketId()).get();
+                if ((ticket.getStatus()).equals("closed")) {
+                    tickets.add(ticket);
+                }
             }
         });
 
@@ -178,7 +213,6 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
 
         } else {
-
 
             Ticket ticket = new Ticket();
             ticket.setTicketId(postDTO.getPostId());
@@ -207,8 +241,18 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
     }
 
+    @Override
+    public NoTicketsDTO resolvedTickets(String supportAgentId) {
+        SupportAgent supportAgent = supportAgentRepository.findById(supportAgentId).get();
+        NoTicketsDTO noTicketsDTO = new NoTicketsDTO();
+        noTicketsDTO.setTicketsResolved(supportAgent.getTicketsResolved());
+        noTicketsDTO.setTickertsPending(supportAgent.getTicketsPending());
+        return noTicketsDTO;
+    }
+
     @Scheduled(fixedDelay = 600000)
     private void sendMails() {
+        System.out.println("hi");
         List<Ticket> ticketList = ticketRepository.findAll();
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -222,21 +266,31 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
                     ObjectMapper objectMapper = new ObjectMapper();
                     try {
-                        kafkaTemplate.send("Mail", objectMapper.writeValueAsString(mailDTO));
+                        kafkaTemplate.send("mail", objectMapper.writeValueAsString(mailDTO));
                     } catch (JsonProcessingException e) {
                         e.printStackTrace();
                     }
 
-                    if (ticket.getMailCount() < 4)
+                    System.out.println(ticket.getMailCount());
+                    if (ticket.getMailCount() <= 4) {
+                        System.out.println(ticket.getMailCount() + 1);
+                        LocalDateTime now1 = LocalDateTime.now();
+                        ticket.setUpdatedTime(dtf.format(now1));
                         ticket.setMailCount(ticket.getMailCount() + 1);
+                    }
 
-                    else
+                    else {
+                        ticket.setMailCount(0);
                         ticket.setStatus("discarded");
 
+                    }
+
+                    ticketRepository.save(ticket);
 
                 }
 
-            } else if ((ticket.getStatus()).equals("in progress")) {
+            }
+            else if ((ticket.getStatus()).equals("in progress")) {
                 LocalDateTime now = LocalDateTime.now();
 
                 if (dtf.format(now.minusMinutes(15)).compareTo(ticket.getUpdatedTime()) > 0) {
@@ -253,17 +307,43 @@ public class SupportAgentServiceImpl implements SupportAgentService {
 
                     ObjectMapper objectMapper = new ObjectMapper();
                     try {
-                        kafkaTemplate.send("Mail", objectMapper.writeValueAsString(mailDTO));
+                        kafkaTemplate.send("mail", objectMapper.writeValueAsString(mailDTO));
                     } catch (JsonProcessingException e) {
                         e.printStackTrace();
                     }
 
-                    if (ticket.getMailCount() < 4)
+                    System.out.println(ticket.getMailCount());
+                    if (ticket.getMailCount() <= 4) {
+                        System.out.println(ticket.getMailCount() + 1);
+                        LocalDateTime now1 = LocalDateTime.now();
+                        ticket.setUpdatedTime(dtf.format(now1));
                         ticket.setMailCount(ticket.getMailCount() + 1);
+                    }
 
-                    else
+                    else {
+                        LocalDateTime now1 = LocalDateTime.now();
+                        ticket.setUpdatedTime(dtf.format(now1));
+                        ticket.setMailCount(0);
+                        SupportAgent supportAgent = supportAgentRepository.findById(saId.get()).get();
+                        supportAgent.setTicketsPending(supportAgent.getTicketsPending() - 1);
+                        supportAgentRepository.save(supportAgent);
+                        List<SaTicket> saTicketList = saTicketRespository.findAll();
+
+                        AtomicReference<String> id = new AtomicReference<>("");
+                        AtomicInteger flag = new AtomicInteger();
+                        saTicketList.stream().forEach(saTicket -> {
+                            if ((saTicket.getSupportAgentId()).equals(saId.get()) && (saTicket.getTicketId()).equals(ticket.getTicketId())){
+                                id.set(saTicket.getSupportAgentTicketId());
+                                flag.set(1);
+                                return;
+                            }
+                        });
+                        if (flag.get() == 1)
+                            saTicketRespository.deleteById(id.get());
                         ticket.setStatus("open");
+                    }
 
+                    ticketRepository.save(ticket);
                 }
             }
         });

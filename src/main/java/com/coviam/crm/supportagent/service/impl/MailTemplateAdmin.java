@@ -12,24 +12,24 @@ public class MailTemplateAdmin {
         switch ((int) mailNumber){
             case 0:
             case 1:
-                mailDTO.setContent("Hey {$name},\n" +
+                mailDTO.setContent("Hey Jainil,\n" +
                         "\n" +
-                        "The ticket, {$ticketId}, has been generated since {$Time} minutes. Please assign it to an agent.\n" +
+                        "The ticket, "+ticket.getTicketId()+", has been generated since "+ticket.getCreatedTime()+". Please assign it to an agent.\n" +
                         "\n" +
                         "Thank you.");
                 break;
             case 2:
             case 3:
-                mailDTO.setContent("Hey {$name},\n" +
+                mailDTO.setContent("Hey Jainil,\n" +
                         "\n" +
-                        "The ticket, {$ticketId}, has been generated since {$Time} minutes. Please assign it to an agent as soon as possible.\n" +
+                        "The ticket, "+ticket.getTicketId()+", has been generated since "+ticket.getCreatedTime()+". Please assign it to an agent as soon as possible.\n" +
                         "\n" +
                         "Thank you.");
                 break;
             case 4:
-                mailDTO.setContent("{$name},\n" +
+                mailDTO.setContent("Jainil,\n" +
                         "\n" +
-                        "The ticket, {$ticketId}, has been generated since {$Time} minutes. Assign it to an agent now!!!");
+                        "The ticket, "+ticket.getTicketId()+", has been generated since "+ticket.getCreatedTime()+". Assign it to an agent now!!!");
                 break;
         }
         return mailDTO;

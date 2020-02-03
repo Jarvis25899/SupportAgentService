@@ -20,11 +20,13 @@ public class SupportAgentController {
     @Autowired
     SupportAgentService supportAgentService;
 
+    //request header
     @PostMapping("/createTicket")
-    public ResponseEntity<String> createTicket(@RequestBody PostDTO postDTO){
+    public ResponseEntity<String> createTicket(@RequestHeader(value = "userId") String userId,@RequestBody PostDTO postDTO){
+//        postDTO.setUserId(userId);
+        postDTO.setDislikedId(userId);
         return new ResponseEntity<>(supportAgentService.createTicket(postDTO),HttpStatus.OK);
     }
-
 
     @PostMapping("/addSupportAgent")
     public ResponseEntity<String> addSupportAgent(@RequestBody SupportAgentDTO supportAgentDTO){
@@ -35,9 +37,9 @@ public class SupportAgentController {
         return new ResponseEntity<>("Successfully added",HttpStatus.OK);
     }
 
-    @DeleteMapping("/deleteSupportAgent/{sId}")
-    public ResponseEntity<String> deleteSupportAgent(@PathVariable("sId") String sId){
-        supportAgentService.deleteSupportAgent(sId);
+    @DeleteMapping("/deleteSupportAgent/{supportAgentId}")
+    public ResponseEntity<String> deleteSupportAgent(@PathVariable("supportAgentId") String supportAgentId){
+        supportAgentService.deleteSupportAgent(supportAgentId);
         return new ResponseEntity<>("Successfully deleted",HttpStatus.OK);
     }
 
@@ -48,6 +50,14 @@ public class SupportAgentController {
         supportAgentService.assignTicket(saTicket);
         return new ResponseEntity<>("Successfully assigned",HttpStatus.OK);
     }
+
+    //request header
+    @GetMapping("/getCountOfTickets/")
+    public ResponseEntity<NoTicketsDTO> resolvedTickets(@RequestHeader(value = "userId") String userId){
+        System.out.println(userId);
+        return new ResponseEntity<>(supportAgentService.resolvedTickets(userId),HttpStatus.OK);
+    }
+
 
     @GetMapping("/getTicketList")
     public ResponseEntity<List<Ticket>> getTicketList(){
@@ -70,17 +80,25 @@ public class SupportAgentController {
         return new ResponseEntity<>(supportAgentService.uploadComments(commentDTO),HttpStatus.OK);
     }
 
-    @GetMapping("getTicketsBySAId/{supportAgentId}")
-    public ResponseEntity<List<Ticket>> getTicketsBySAId(@PathVariable("supportAgentId") String supportAgentId){
-        return new ResponseEntity<>(supportAgentService.getTicketsBySAId(supportAgentId),HttpStatus.OK);
+    //request header
+    @GetMapping("/getPendingTicketsBySAId/")
+    public ResponseEntity<List<Ticket>> getPendingTicketsBySAId(@RequestHeader(value = "userId") String userId){
+        System.out.println(userId+" hiiiiiiii");
+        System.out.println(supportAgentService.getPendingTicketsBySAId(userId));
+        return new ResponseEntity<>(supportAgentService.getPendingTicketsBySAId(userId),HttpStatus.OK);
+    }
+
+    @GetMapping("/getResolvedTicketsBySAId/")
+    public ResponseEntity<List<Ticket>> getResolvedTicketsBySAId(@RequestHeader(value = "userId") String userId){
+        System.out.println(userId+" hiiiiiiii");
+        System.out.println(supportAgentService.getResolvedTicketsBySAId(userId));
+        return new ResponseEntity<>(supportAgentService.getResolvedTicketsBySAId(userId),HttpStatus.OK);
     }
 
 
-    //close button click
     @GetMapping("/closeTicket/{ticketId}")
     public ResponseEntity<String> closeTicket(@PathVariable("ticketId") String ticketId){
         return new ResponseEntity<>(supportAgentService.closeTicket(ticketId),HttpStatus.OK);
     }
-
 
 }
